@@ -20,7 +20,7 @@ export const client = new ApolloClient({
 
 const tableStyle = {textAlign: "right", borderCollapse: "collapse"}
 const feeRate = 0.003 /* 平台收用户的手续费是0.003,但是分给做市商的只有0.0025 */
-const myIncomeRate = 25 / 30
+const myIncomeRate = 1 //25 / 30
 
 //生成映射，便于查询
 const address2name = {}, name2address = {}, address2Obj = {}

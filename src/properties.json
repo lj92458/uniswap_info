@@ -40,19 +40,19 @@
       "name": "link-eth",
       "address": "0xa2107fa5b38d9bbd2c461d6edf11b11a50f6b974",
       "follow": true,
-      "myReserveUSD": [{"dateStr":"2020-07-02","value": 21162}]
+      "myReserveUSD": [{"dateStr":"2020-07-02","value": 21162},{"dateStr":"2020-08-01","value": 34972}]
     },
     {
       "name": "eth-knc",
       "address": "0xf49c43ae0faf37217bdcb00df478cf793edd6687",
       "follow": true,
-      "myReserveUSD": [{"dateStr":"2020-07-02","value": 20566}]
+      "myReserveUSD": [{"dateStr":"2020-07-02","value": 20566},{"dateStr":"2020-08-01","value": 0}]
     },
     {
       "name": "dai-eth",
       "address": "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11",
       "follow": true,
-      "myReserveUSD": [{"dateStr":"2020-07-26","value": 20417}]
+      "myReserveUSD": [{"dateStr":"2020-07-26","value": 20417},{"dateStr":"2020-08-01","value": 0}]
     },
     {
       "name": "usdc-usdt",
@@ -87,6 +87,12 @@
     {
       "name": "eth-renBtc",
       "address": "0x81fbef4704776cc5bba0a5df3a90056d2c6900b3",
+      "follow": false,
+      "myReserveUSD": []
+    },
+    {
+      "name": "eth-usdt",
+      "address": "0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852",
       "follow": false,
       "myReserveUSD": []
     }
