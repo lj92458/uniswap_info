@@ -5,7 +5,10 @@ import {InMemoryCache} from 'apollo-cache-inmemory'
 import {HttpLink} from 'apollo-link-http'
 import {useQuery} from '@apollo/react-hooks'
 import gql from 'graphql-tag'
-import {pairObjArr} from './properties.json'
+import {ProfitTrend, init as init_ShowLpProfit} from './ShowLpProfit'
+import {rpcProxy} from './rpcClient'
+import ethers from "ethers";
+import {formatDate, parseDate} from './dateUtil'
 
 export const client = new ApolloClient({
     link: new HttpLink({
@@ -21,14 +24,36 @@ export const client = new ApolloClient({
 const tableStyle = {textAlign: "right", borderCollapse: "collapse"}
 const feeRate = 0.003 /* 平台收用户的手续费是0.003,但是分给做市商的只有0.0025 */
 const myIncomeRate = 1 //25 / 30
-
+let pairObjArr//存储各交易对的属性
 //生成映射，便于查询
 const address2name = {}, name2address = {}, address2Obj = {}
-pairObjArr.forEach((obj) => {
-    address2name[obj.address] = obj.name
-    name2address[obj.name] = obj.address
-    address2Obj[obj.address] = obj
-})
+//服务器端的配置文件
+let config
+
+
+//加载配置文件
+async function initConfig() {
+    let promise1 = rpcProxy.getConfig()
+    let promise2 = rpcProxy.getProp()
+    let prop
+    [config, prop] = await Promise.all([promise1, promise2]).catch(err => console.log("rpcProxy：" + err))
+
+    config.provider = ethers.getDefaultProvider(config.chainId, {
+        etherscan: config.etherscanAPIKey,
+        infura: config.infuraAPIKey,
+        //alchemy:
+    })
+    pairObjArr = prop.pairObjArr
+    pairObjArr.forEach((obj) => {
+        address2name[obj.address] = obj.name
+        name2address[obj.name] = obj.address
+        address2Obj[obj.address] = obj
+    })
+
+    init_ShowLpProfit(config, pairObjArr, address2name, name2address, address2Obj)
+
+    return config
+}
 
 //读取配置文件中指定日期对应的金额
 const findReserveUSD = (date, pairObj) => {
@@ -36,9 +61,9 @@ const findReserveUSD = (date, pairObj) => {
     let before //ReserveObj
     for (let i = 0; i < pairObj.myReserveUSD.length; i++) {
         let strArr = pairObj.myReserveUSD[i].dateStr.split("-")
-        let parsedDate = new Date(parseInt(strArr[0]), parseInt(strArr[1]) )
+        let parsedDate = new Date(parseInt(strArr[0]), parseInt(strArr[1]))
         parsedDate.setUTCDate(parseInt(strArr[2]))
-        parsedDate.setUTCHours(0)
+        parsedDate.setUTCHours(0, 0, 0, 0)
 
         if (date < parsedDate) {
             break
@@ -53,15 +78,10 @@ const findReserveUSD = (date, pairObj) => {
 }
 
 const OnePairMoreDay = () => {
-    const defaultPair = "0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc"
-    const [state, setState] = useState({pairAddress: defaultPair});
 
-    const handleSelectChange = (e) => {
-        setState({
-            pairAddress: e.target.value
-        })
+    const [pairAddress, setPairAddress] = useState("0xb4e16d0168e52d35cacd2c6185b44281ec28c9dc");
 
-    }
+    const handleSelectChange = e => setPairAddress(e.target.value)
 
 
     const PAIR_DAY_QUERY = gql`
@@ -79,15 +99,14 @@ const OnePairMoreDay = () => {
 
     const {loading: pairDayLoading, error: pairDayError, data: pairDayResult} = useQuery(PAIR_DAY_QUERY, {
         variables: {
-            pairAddress: state.pairAddress
+            pairAddress: pairAddress
         }
     })
     const pairDayDatas = pairDayResult && pairDayResult.pairDayDatas; // this is an array
 
     return <div>
         交易对:
-        <select
-            defaultValue={defaultPair} onChange={handleSelectChange}>
+        <select defaultValue={pairAddress} onChange={handleSelectChange}>
             {
                 pairObjArr.map((value, index) => {
                     return <option key={"option_" + index} value={value.address}>{value.name}</option>
@@ -118,7 +137,7 @@ const OnePairMoreDay = () => {
                             let theDate = new Date(parseInt(value.date) * 1000)
                             let myReserveUSD = findReserveUSD(theDate, address2Obj[value.pairAddress])
                             return <tr key={"tr_" + index}>
-                                <td>{theDate.getUTCFullYear() + "-" + (theDate.getUTCMonth() + 1) + "-" + theDate.getUTCDate()}</td>
+                                <td>{formatDate(theDate,'yyyy-MM-dd','utc')}</td>
                                 <td>{value.dailyTxns}</td>
                                 <td>{parseFloat(value.reserveUSD).toFixed(2)}</td>
                                 <td>{parseFloat(value.dailyVolumeUSD).toFixed(2)}</td>
@@ -142,20 +161,16 @@ const OneDayMorePair = () => {
     for (let i = 0; i < 60; i++) {
         let today = new Date()
         today.setUTCDate(today.getUTCDate() - i)
-        today.setUTCHours(0, 0, 0);
+        today.setUTCHours(0, 0, 0, 0);
         dateArr.push(today)
     }
 
-    const defaultDayInSeconds = parseInt((dateArr[0].getTime() / 1000).toString())
 
-    const [state, setState] = useState({day: defaultDayInSeconds});
+    const [day, setDay] = useState(parseInt((dateArr[0].getTime() / 1000).toString()));
 
-    const handleSelectChange = (e) => {
-        setState({
-            day: parseInt(e.target.value)
-        })
+    const handleSelectChange = e => setDay(e.target.value)
 
-    }
+
     const followStyle = {background: "yellow"}
     const ONE_DAY_MORE_PAIR_QUERY = gql`
             query oneDayMorePair($date: Int!) {
@@ -178,7 +193,7 @@ const OneDayMorePair = () => {
 
     const {loading: pairsLoading, error: pairsError, data: pairsResult} = useQuery(ONE_DAY_MORE_PAIR_QUERY, {
         variables: {
-            date: state.day
+            date: day
         }
     })
     const pairDataArr = pairsResult && pairsResult.pairDayDatas; // this is an array
@@ -186,14 +201,14 @@ const OneDayMorePair = () => {
 
     let myTotalReserve = 0
     let myTotalEarn = 0
-    let selectedDate = new Date(state.day * 1000)
+    let selectedDate = new Date(day * 1000)
     return <div>
         日期:
         <select
-            defaultValue={defaultDayInSeconds} onChange={handleSelectChange}>
+            defaultValue={day} onChange={handleSelectChange}>
             {dateArr.map((date, index,) => {
-                return <option key={"option_" + index} value={parseInt((date.getTime() / 1000).toString())}>
-                    {date.getUTCFullYear() + "-" + (date.getUTCMonth() + 1) + "-" + date.getUTCDate()}
+                return <option key={"option_" + index} value={date.getTime() / 1000}>
+                    {formatDate(date,'yyyy-MM-dd','utc')}
                 </option>
             })}
         </select>
@@ -258,18 +273,33 @@ const OneDayMorePair = () => {
 }
 
 function App() {
+    let [config, setConfig] = useState(null)
+    if (!config) {
+        initConfig().then(_config => {
+            setConfig(_config)
+        }).catch(e => console.error(e))
+    }
 
-    return (
-        <div>
-            <style>
-                {`table,table tr th, table tr td { border:1px solid #0094ff; }
-                   
+    return <div>
+        <style>
+            {`*{margin:3px;}
+            table,table tr th, table tr td { border:1px solid #0094ff; }
+                   input{width:350px;border:none;border-bottom:solid 1px;}
                 `}
-            </style>
-            <OnePairMoreDay/>
-            <OneDayMorePair/>
-        </div>
-    );
+        </style>
+        {config ?
+            <div>
+                <ProfitTrend/><br/><br/><br/>
+                <OnePairMoreDay/><br/><br/><br/>
+                <OneDayMorePair/><br/><br/><br/>
+
+            </div>
+            :
+            <div>加载配置文件...</div>
+        }
+    </div>
+
+
 }
 
 export default App;
