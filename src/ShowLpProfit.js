@@ -132,7 +132,7 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
     })
     const user = userPairState && userPairState.user; // this is an User object.  see:  https://thegraph.com/explorer/subgraph/uniswap/uniswap-v2?selected=playground
     //console.log(JSON.stringify(userPairState)+"_"+JSON.stringify(stateQuery))
-    let echartsOption
+    let echartsOption_earn, echartsOption_rate
     if (!userLoading) {
         console.log('userLoading ok')
     }
@@ -145,9 +145,9 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
         if (user !== null && user.liquidityPositions.length > 0) {
 
 
-            let series_dataArr = []//只要一个系列，所以不需要legend . 每个系列数据类型：{type:"line", data:[[xValue,yValue],[xValue,yValue]]}
-            let legend_dataArr = []//样例说明
-            let yAxis_Arr = []//y轴配置
+            let series_dataArr = [], series_dataArr2 = []//只要一个系列，所以不需要legend . 每个系列数据类型：{type:"line", data:[[xValue,yValue],[xValue,yValue]]}
+            let legend_dataArr = [], legend_dataArr2 = []//样例说明
+            let yAxis_Arr = [], yAxis_Arr2 = []//y轴配置
 
             for (let pairAddress of pairAddress_Arr) {
                 let addressName = address2name[pairAddress]
@@ -158,12 +158,13 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
 
                 //推算token0,token1
                 let tokenArr = tokenA.sortsBefore(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA]
-                prepareEchartsOption(pairAddress, user, pairStateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr)
+                prepareEchartsOption(pairAddress, user, pairStateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr,
+                    series_dataArr2, legend_dataArr2, yAxis_Arr2)
                 //console.log(JSON.stringify(echartsOption))
             }//end for every pair
 
-            echartsOption = getEchartsOptions(legend_dataArr, series_dataArr, yAxis_Arr)
-
+            echartsOption_earn = getEchartsOptions_earn(legend_dataArr, series_dataArr, yAxis_Arr)
+            echartsOption_rate = getEchartsOptions_rate(legend_dataArr2, series_dataArr2, yAxis_Arr2)
         } else {
             isReady = false
             msg = '该用户没有进行过任何活动，相关数据不存在。'
@@ -195,17 +196,29 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
         {!isReady ?
             <div>{msg}</div>
             :
-            <ReactEcharts
-                option={echartsOption}
-                notMerge={true}
-                lazyUpdate={false}
-                //theme={"theme_name"}
-                //onChartReady={this.onChartReadyCallback}
-                //onEvents={EventsDict}
-                style={{height: '400px', width: '1500px'}}
-                //opts={}
-            />
+            <div>
+                <ReactEcharts
+                    option={echartsOption_earn}
+                    notMerge={true}
+                    lazyUpdate={false}
+                    //theme={"theme_name"}
+                    //onChartReady={this.onChartReadyCallback}
+                    //onEvents={EventsDict}
+                    style={{height: '400px', width: '1500px'}}
+                    //opts={}
+                />
 
+                <ReactEcharts
+                    option={echartsOption_rate}
+                    notMerge={true}
+                    lazyUpdate={false}
+                    //theme={"theme_name"}
+                    //onChartReady={this.onChartReadyCallback}
+                    //onEvents={EventsDict}
+                    style={{height: '400px', width: '1500px'}}
+                    //opts={}
+                />
+            </div>
         }
 
     </div>
@@ -219,7 +232,8 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
  * @param tokenArr 存储两个token, 按大小顺序排好了的 token0, token1
  * @return {{yAxis: {type: string}, xAxis: {type: string}, legend: {data: *}, grid: {left: string, bottom: string, right: string, containLabel: boolean}, series: *, tooltip: {trigger: string}, toolbox: {feature: {saveAsImage: {}}}, title: {text: string}}}
  */
-function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr) {
+function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr,
+                              series_dataArr2, legend_dataArr2, yAxis_Arr2) {
     if (tokenArr.length >= 1000) {
         alert("注意：返回的数据超过了1000条。应该调整查询条件。")
     }
@@ -248,7 +262,7 @@ function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, ser
         return
     }
 
-    let series = []//一个系列的数据
+    let series = [], series2 = []//一个系列的数据
 
     let yAxisName = '?'
     let fix, change
@@ -302,8 +316,12 @@ function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, ser
                         let earn = ((myReserveArr[fix] - myInitReserveArr[fix]) * (myReserveArr[change] / myReserveArr[fix])) +
                             myReserveArr[change] - myInitReserveArr[change]
                         earn = earn.toFixed(3)
+                        //
+                        let earn2 = 100 * earn / (myInitReserveArr[change] * 2) //收益除以本金乘以100
+                        earn2 = earn2.toFixed(3)
                         //console.log(JSON.stringify(myReserveArr) + '\n' + JSON.stringify(myInitReserveArr))
                         series.push([pairState.date_time.substr(0, 13) + ':00:00', earn])
+                        series2.push([pairState.date_time.substr(0, 13) + ':00:00', earn2])
                     }
                 } else {
                     break //break inner for
@@ -344,17 +362,88 @@ function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, ser
         }
     }
 
+    //另一个图表 =========          ====================================
+    series_dataArr2.push({
+        type: "line",
+        symbol: 'none', //去掉小圆点
+        name: address2name[pairAddress],
+        symbolSize: 1,
+        data: series2
+    })
+    legend_dataArr2.push(address2name[pairAddress])
+
+    //不要多个y轴，那么就给数组设置一个元素
+    yAxis_Arr2[0] = {
+        type: 'value',
+        name: '%',
+        offset: yAxis_Arr2.length < 2 ? 0 : (yAxis_Arr2[yAxis_Arr2.length - 1].offset - 30),
+
+        axisLine: {
+            lineStyle: {
+                color: colors[yAxis_Arr2.length]
+            },
+            symbol: ['none', 'arrow'],
+            symbolSize: [5, 5],
+            symbolOffset: 0
+        },
+        axisLabel: {
+            formatter: '{value}'
+        }
+    }
+
 }//end function
 
 
-function getEchartsOptions(legend_dataArr, series_dataArr, yAxis_Arr) {
+function getEchartsOptions_earn(legend_dataArr, series_dataArr, yAxis_Arr) {
     //console.log(JSON.stringify(legend_dataArr))
     //console.log(JSON.stringify(yAxis_Arr))
     //console.log(JSON.stringify(series_dataArr))
 // 指定图表的配置项和数据
     var option = {
         title: {
-            text: '收入累积走势图',
+            text: '收入累积',
+            //textAlign: 'center',
+        },
+        tooltip: {
+            trigger: 'axis',
+            //formatter: '{c}'
+
+        },
+        legend: {
+            data: legend_dataArr
+        },
+        grid: [{
+            left: '3%',
+            right: '4%',
+            bottom: '3%',
+            containLabel: true
+        },
+        ],
+        toolbox: {
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'time',
+            //boundaryGap:['20%','20%'] , //
+
+        },
+        yAxis: yAxis_Arr,
+
+        series: series_dataArr,
+
+    };
+
+
+    return option;
+}
+
+function getEchartsOptions_rate(legend_dataArr, series_dataArr, yAxis_Arr) {
+// 指定图表的配置项和数据
+    var option = {
+        title: {
+            text: '收益率累积',
             //textAlign: 'center',
         },
         tooltip: {
