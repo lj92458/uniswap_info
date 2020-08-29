@@ -137,7 +137,7 @@ const OnePairMoreDay = () => {
                             let theDate = new Date(parseInt(value.date) * 1000)
                             let myReserveUSD = findReserveUSD(theDate, address2Obj[value.pairAddress])
                             return <tr key={"tr_" + index}>
-                                <td>{formatDate(theDate,'yyyy-MM-dd','utc')}</td>
+                                <td>{formatDate(theDate, 'yyyy-MM-dd', 'utc')}</td>
                                 <td>{value.dailyTxns}</td>
                                 <td>{parseFloat(value.reserveUSD).toFixed(2)}</td>
                                 <td>{parseFloat(value.dailyVolumeUSD).toFixed(2)}</td>
@@ -166,9 +166,9 @@ const OneDayMorePair = () => {
     }
 
 
-    const [day, setDay] = useState(parseInt((dateArr[0].getTime() / 1000).toString()));
+    const [day, setDay] = useState(dateArr[0].getTime() / 1000);
 
-    const handleSelectChange = e => setDay(e.target.value)
+    const handleSelectChange = e => setDay(parseInt(e.target.value))
 
 
     const followStyle = {background: "yellow"}
@@ -190,7 +190,7 @@ const OneDayMorePair = () => {
                  }
         }
         `
-
+    //console.log('day:'+day)
     const {loading: pairsLoading, error: pairsError, data: pairsResult} = useQuery(ONE_DAY_MORE_PAIR_QUERY, {
         variables: {
             date: day
@@ -208,7 +208,7 @@ const OneDayMorePair = () => {
             defaultValue={day} onChange={handleSelectChange}>
             {dateArr.map((date, index,) => {
                 return <option key={"option_" + index} value={date.getTime() / 1000}>
-                    {formatDate(date,'yyyy-MM-dd','utc')}
+                    {formatDate(date, 'yyyy-MM-dd', 'utc')}
                 </option>
             })}
         </select>
@@ -274,10 +274,11 @@ const OneDayMorePair = () => {
 
 function App() {
     let [config, setConfig] = useState(null)
-    if (!config) {
+    if (!config) {console.log('begin initConfig')
         initConfig().then(_config => {
+            console.log('end initConfig')
             setConfig(_config)
-        }).catch(e => console.error(e))
+        }).catch(e => console.error('initConfig:'+e))
     }
 
     return <div>
