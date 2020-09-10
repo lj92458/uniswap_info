@@ -130,12 +130,11 @@ const OnePairMoreDay = () => {
                         <td>交易额$</td>
                         <td>手续费$</td>
                         <td>年化收益%</td>
-                        <td>我的资金$</td>
-                        <td>我的收益$</td>
+
                     </tr>].concat(!pairDayDatas ? [] :
                         pairDayDatas.map((value, index) => {
                             let theDate = new Date(parseInt(value.date) * 1000)
-                            let myReserveUSD = findReserveUSD(theDate, address2Obj[value.pairAddress])
+
                             return <tr key={"tr_" + index}>
                                 <td>{formatDate(theDate, 'yyyy-MM-dd', 'utc')}</td>
                                 <td>{value.dailyTxns}</td>
@@ -143,8 +142,7 @@ const OnePairMoreDay = () => {
                                 <td>{parseFloat(value.dailyVolumeUSD).toFixed(2)}</td>
                                 <td>{(parseFloat(value.dailyVolumeUSD) * feeRate).toFixed(2)}</td>
                                 <td>{(myIncomeRate * 365 * 100 * parseFloat(value.dailyVolumeUSD) * feeRate / parseFloat(value.reserveUSD)).toFixed(2)}</td>
-                                <td>{myReserveUSD}</td>
-                                <td>{(parseFloat(value.dailyVolumeUSD) * (myIncomeRate * feeRate) * myReserveUSD / parseFloat(value.reserveUSD)).toFixed(2)}</td>
+
                             </tr>
                         })
                     )
@@ -229,15 +227,9 @@ const OneDayMorePair = () => {
                         <td>交易额$</td>
                         <td>手续费$</td>
                         <td>年化收益%</td>
-                        <td>我的资金$</td>
-                        <td>我的收益$</td>
+
                     </tr>].concat(!pairDataArr ? [] :
                         pairDataArr.map((value, index,) => {
-
-                            let myReserve = findReserveUSD(selectedDate, address2Obj[value.pairAddress])
-                            let myEarn = (parseFloat(value.dailyVolumeUSD) * (myIncomeRate * feeRate) * myReserve / parseFloat(value.reserveUSD))
-                            myTotalReserve += myReserve
-                            myTotalEarn += myEarn
 
                             return <tr key={"tr_" + index}
                                        style={address2Obj[value.pairAddress].follow ? followStyle : null}>
@@ -248,22 +240,9 @@ const OneDayMorePair = () => {
                                 <td>{parseFloat(value.dailyVolumeUSD).toFixed(2)}</td>
                                 <td>{(parseFloat(value.dailyVolumeUSD) * feeRate).toFixed(2)}</td>
                                 <td>{(myIncomeRate * 365 * 100 * parseFloat(value.dailyVolumeUSD) * feeRate / parseFloat(value.reserveUSD)).toFixed(2)}</td>
-                                <td>{myReserve}</td>
-                                <td>{myEarn.toFixed(2)}</td>
+
                             </tr>
                         })
-                    ).concat(
-                        <tr key={"tr_foot"} style={{color: 'red'}}>
-                            <td>合计</td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td>{myTotalReserve}</td>
-                            <td>{myTotalEarn.toFixed(0)}</td>
-                        </tr>
                     )
             }
             </tbody>

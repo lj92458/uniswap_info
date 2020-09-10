@@ -101,14 +101,14 @@ export function ProfitTrend() {
 
 
     //查询用户的出入金情况。按时间倒序排列，只能查出1000条
-    const USER_QUERY = gql`
-query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
-  user(id:$userAddress){
-    usdSwapped
-    liquidityPositions(where:{pair_in: $pairAddress_Arr}){
-      liquidityTokenBalance
-      pair{id}
-      historicalSnapshots(first:1000,orderBy:timestamp, orderDirection:desc,){ # 查询数量不得超过一千。注意这里是倒序排列
+    const snapshot_QUERY = gql`
+query snapshots($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
+  
+liquidityPositionSnapshots(where:{
+      user:$userAddress
+      pair_in: $pairAddress_Arr
+    }, first:1000,orderBy:timestamp, orderDirection:desc,){
+        pair{id}
         timestamp
         token0PriceUSD
         token1PriceUSD
@@ -117,32 +117,29 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
         reserveUSD #资金池总价值
         liquidityTokenTotalSupply #流动性代币总量
         liquidityTokenBalance #当前用户的流动性代币的数量
-      }
     }
-  }
-
 }
 `
 
-    const {loading: userLoading, error: userError, data: userPairState} = useQuery(USER_QUERY, {
+    const {loading: snapshotLoading, error: snapshotError, data: snapshotState} = useQuery(snapshot_QUERY, {
         variables: {
             pairAddress_Arr: pairAddress_Arr,
             userAddress: queryParam.userAddress,
         }
     })
-    const user = userPairState && userPairState.user; // this is an User object.  see:  https://thegraph.com/explorer/subgraph/uniswap/uniswap-v2?selected=playground
+    const snapshots = snapshotState && snapshotState.liquidityPositionSnapshots; // this is an User object.  see:  https://thegraph.com/explorer/subgraph/uniswap/uniswap-v2?selected=playground
     //console.log(JSON.stringify(userPairState)+"_"+JSON.stringify(stateQuery))
     let echartsOption_earn, echartsOption_rate
-    if (!userLoading) {
-        console.log('userLoading ok')
+    if (!snapshotLoading) {
+        console.log('snapshotLoading ok')
     }
-    let isReady = !userLoading && !pairStateLoading
+    let isReady = !snapshotLoading && !pairStateLoading
 
     //开始生成图表
     let msg = '正在加载....缩小时间范围，可以提高速度。'
     console.log('isReady:' + isReady)
     if (isReady) {
-        if (user !== null && user.liquidityPositions.length > 0) {
+        if (snapshots !== null && snapshots.length > 0) {
 
 
             let series_dataArr = [], series_dataArr2 = []//只要一个系列，所以不需要legend . 每个系列数据类型：{type:"line", data:[[xValue,yValue],[xValue,yValue]]}
@@ -158,7 +155,7 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
 
                 //推算token0,token1
                 let tokenArr = tokenA.sortsBefore(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA]
-                prepareEchartsOption(pairAddress, user, pairStateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr,
+                prepareEchartsOption(pairAddress, snapshots, pairStateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr,
                     series_dataArr2, legend_dataArr2, yAxis_Arr2)
                 //console.log(JSON.stringify(echartsOption))
             }//end for every pair
@@ -189,6 +186,7 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
         </select>
         &nbsp;&nbsp;&nbsp;
         <button disabled={pairStateLoading} onClick={handleQuery}>查询</button>
+        &nbsp;&nbsp;&nbsp;<a href="/sushi_info" target="_blank">打开sushi_info</a>
         <br/>
         <span style={{color: 'blue', marginLeft: 30}}>当前时间(UTC):{formatDate(new Date(), format, 'utc')}</span>
 
@@ -227,15 +225,15 @@ query userPairState($pairAddress_Arr: [Bytes]!, $userAddress: Bytes!) {
 
 /**
  * 生成echarts 的option
- * @param subgraphUser  thegraph返回的user对象。参见 https://thegraph.com/explorer/subgraph/uniswap/uniswap-v2?selected=playground
+ * @param snapshots  thegraph返回的liquidityPositionSnapshot对象。参见 https://thegraph.com/explorer/subgraph/uniswap/uniswap-v2?selected=playground
  * @param stateArr
  * @param tokenArr 存储两个token, 按大小顺序排好了的 token0, token1
  * @return {{yAxis: {type: string}, xAxis: {type: string}, legend: {data: *}, grid: {left: string, bottom: string, right: string, containLabel: boolean}, series: *, tooltip: {trigger: string}, toolbox: {feature: {saveAsImage: {}}}, title: {text: string}}}
  */
-function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr,
+function prepareEchartsOption(pairAddress, snapshots, stateArr, tokenArr, series_dataArr, legend_dataArr, yAxis_Arr,
                               series_dataArr2, legend_dataArr2, yAxis_Arr2) {
-    if (tokenArr.length >= 1000) {
-        alert("注意：返回的数据超过了1000条。应该调整查询条件。")
+    if (stateArr.length >= 20000) {
+        alert("注意：返回的数据超过了20000条。应该调整查询条件。")
     }
 
 
@@ -253,14 +251,47 @@ function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, ser
      */
     //console.log(JSON.stringify(subgraphUser))
 
-    let snapshotArr
-    for (let liquidityPosition of subgraphUser.liquidityPositions) {
-        if (liquidityPosition.pair.id === pairAddress) snapshotArr = liquidityPosition.historicalSnapshots
+    let snapshotArr = []
+    for (let snapshot of snapshots) {
+        if (snapshot.pair.id === pairAddress) snapshotArr.push(snapshot)
     }
+
     //如果用户没有操作过这个交易对
     if (!snapshotArr || snapshotArr.length === 0) {
         return
     }
+
+    //新增功能：兼容sushi：如果是最后一次变动，并且金额是0，就忽略
+    let sushiArr = [
+        '0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852',
+        '0xa2107fa5b38d9bbd2c461d6edf11b11a50f6b974',
+        '0x88d97d199b9ed37c29d846d00d443de980832a22'
+    ]
+
+    //other
+
+    for (let i = 0; i < sushiArr.length; i++) {
+        if (sushiArr[i] === pairAddress) {
+            //删除9月1日之后的所有数据
+            let j = 0
+            let arr = []
+            while (snapshotArr[0] && snapshotArr[0].timestamp * 1000 > parseDate("2020-09-01 00:00:00", format, 'utc').getTime()) {
+                if (snapshotArr[0].liquidityTokenBalance === '0') {
+                    snapshotArr.shift()
+                } else {
+                    arr.push(snapshotArr.shift())
+                }
+                //最后的检测
+                if (snapshotArr.length + arr.length === 0) return
+
+            }//end while
+            snapshotArr = arr.concat(snapshotArr)
+
+            break
+        }
+    }//end for
+
+    //end
 
     let series = [], series2 = []//一个系列的数据
 
@@ -284,6 +315,9 @@ function prepareEchartsOption(pairAddress, subgraphUser, stateArr, tokenArr, ser
         fix = myInitReserveArr[0] < myInitReserveArr[1] ? 1 : 0
         change = myInitReserveArr[0] < myInitReserveArr[1] ? 0 : 1
         yAxisName = tokenArr[change].symbol
+        if(tokenArr[fix].symbol==='eth'){
+            yAxisName='eth'
+        }
 
         //针对每次快照，都重新扫描stateArr
         for (let pairState of stateArr) {
