@@ -5,7 +5,7 @@ import {InMemoryCache} from 'apollo-cache-inmemory'
 import {HttpLink} from 'apollo-link-http'
 import {useQuery} from '@apollo/react-hooks'
 import gql from 'graphql-tag'
-import {ProfitTrend, init as init_ShowLpProfit} from './ShowLpProfit'
+import {ProfitTrend} from './ShowLpProfit'
 import {rpcProxy} from './rpcClient'
 import ethers from "ethers";
 import {formatDate, parseDate} from './dateUtil'
@@ -43,14 +43,13 @@ async function initConfig() {
         infura: config.infuraAPIKey,
         //alchemy:
     })
-    pairObjArr = prop.pairObjArr
+    pairObjArr = prop['uniswap'].pairObjArr
     pairObjArr.forEach((obj) => {
         address2name[obj.address] = obj.name
         name2address[obj.name] = obj.address
         address2Obj[obj.address] = obj
     })
 
-    init_ShowLpProfit(config, pairObjArr, address2name, name2address, address2Obj)
 
     return config
 }
@@ -253,11 +252,12 @@ const OneDayMorePair = () => {
 
 function App() {
     let [config, setConfig] = useState(null)
-    if (!config) {console.log('begin initConfig')
+    if (!config) {
+        console.log('begin initConfig')
         initConfig().then(_config => {
             console.log('end initConfig')
             setConfig(_config)
-        }).catch(e => console.error('initConfig:'+e))
+        }).catch(e => console.error('initConfig:' + e))
     }
 
     return <div>
@@ -269,7 +269,13 @@ function App() {
         </style>
         {config ?
             <div>
-                <ProfitTrend/><br/><br/><br/>
+                <ProfitTrend
+                    config={config}
+                    pairObjArr={pairObjArr}
+                    address2name={address2name}
+                    name2address={name2address}
+                    address2Obj={address2Obj}
+                /><br/><br/><br/>
                 <OnePairMoreDay/><br/><br/><br/>
                 <OneDayMorePair/><br/><br/><br/>
 

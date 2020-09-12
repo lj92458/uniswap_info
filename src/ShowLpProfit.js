@@ -14,15 +14,6 @@ let format = 'yyyy-MM-dd hh:mm:ss'
 let config
 let pairObjArr, address2name = {}, name2address = {}, address2Obj = {}
 
-export function init(config_, pairObjArr_, address2name_, name2address_, address2Obj_) {
-    config = config_
-    pairObjArr = pairObjArr_
-    address2name = address2name_
-    name2address = name2address_
-    address2Obj = address2Obj_
-
-}
-
 function useRpc(funcName, ...args) {
     //console.log('args:'+JSON.stringify(args))
     let thisKey = ''
@@ -58,7 +49,12 @@ function useRpc(funcName, ...args) {
 }
 
 
-export function ProfitTrend() {
+export function ProfitTrend(props) {
+    config = props.config
+    pairObjArr = props.pairObjArr
+    address2name = props.address2name
+    name2address = props.name2address
+    address2Obj = props.address2Obj
     //生成日期数组
     const dateArr = []
     for (let i = 0; i < 60; i++) {
@@ -97,7 +93,7 @@ export function ProfitTrend() {
     }
 
     //查询pair历史状态
-    let {loading: pairStateLoading, error: pairStateError, data: pairStateArr} = useRpc('queryPairState', '', queryParam.beginDate)
+    let {loading: pairStateLoading, error: pairStateError, data: pairStateArr} = useRpc('queryPairState', '', queryParam.beginDate, 'uniswap')
 
 
     //查询用户的出入金情况。按时间倒序排列，只能查出1000条
@@ -271,7 +267,7 @@ function prepareEchartsOption(pairAddress, snapshots, stateArr, tokenArr, series
     //other
 
     for (let i = 0; i < sushiArr.length; i++) {
-        if (sushiArr[i] === pairAddress) {
+        if (sushiArr[i] === pairAddress || true) {
             //删除9月1日之后的所有数据
             let j = 0
             let arr = []
@@ -315,8 +311,8 @@ function prepareEchartsOption(pairAddress, snapshots, stateArr, tokenArr, series
         fix = myInitReserveArr[0] < myInitReserveArr[1] ? 1 : 0
         change = myInitReserveArr[0] < myInitReserveArr[1] ? 0 : 1
         yAxisName = tokenArr[change].symbol
-        if(tokenArr[fix].symbol==='eth'){
-            yAxisName='eth'
+        if (tokenArr[fix].symbol === 'eth') {
+            yAxisName = 'eth'
         }
 
         //针对每次快照，都重新扫描stateArr
