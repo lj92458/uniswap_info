@@ -1,4 +1,5 @@
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+显示自动做市商的利润总额走势曲线图。
 
 ## Available Scripts
 
